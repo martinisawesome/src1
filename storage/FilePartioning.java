@@ -7,9 +7,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 
 /**
- * Partitions files based on alphabetic
+ * Partitions files based on alphabetic. Helps to tell which file a word belongs to
  *
- * @author mao_ma
  */
 public class FilePartioning
 {
@@ -49,11 +48,12 @@ public class FilePartioning
      * Returns the location of a file
      * Ex) FileSystem.THREE_GRAM, apple
      *
+     * @param directory
      * @param header
      * @param word
      * @return
      */
-    public static String getPartitionFileName(String header, String word)
+    public static String getPartitionFileName(String directory, String header, String word)
     {
         String end;
         char car = word.charAt(0);
@@ -121,13 +121,19 @@ public class FilePartioning
         {
             throw new IllegalArgumentException("Cannot partiton for: " + word);
         }
-        return FileSystem.CONTENT_PARTITION_DIRECTORY + header + end;
+        return directory + header + end;
     }
 
-    // Only needs to be called once! Do not ever call again
-    private static void partitionOutFile(String header, String fileName) throws IOException
+    /**
+     * Takes one file and partitions it out by naming
+     * @param header
+     * @param directory
+     * @param fileName
+     * @throws IOException 
+     */
+    public static void partitionOutFile(String header, String directory, String fileName) throws IOException
     {
-        File file = new File(FileSystem.CONTENT_PARTITION_DIRECTORY + fileName);
+        File file = new File(directory + fileName);
         FileReader fr = new FileReader(file);
         BufferedReader br = new BufferedReader(fr);
         String curr;
@@ -139,7 +145,7 @@ public class FilePartioning
         {
             //find if we need to open a new file
             curr = curr.replace("[", "").replace("]", "");
-            String newFileName = getPartitionFileName(header, curr);
+            String newFileName = getPartitionFileName(directory, header, curr);
             if (oldFileName == null ? newFileName != null : !oldFileName.equals(newFileName))
             {
                 if (fw != null)
@@ -163,10 +169,11 @@ public class FilePartioning
     }
 
     //TODO do not ever call this again!
+    @Deprecated
     public static void partitionAll() throws IOException
     {
-        partitionOutFile(FileSystem.FREQ_FILE, "IndexFreqComplete");
-        partitionOutFile(FileSystem.TWO_GRAM, "Index2GramComplete");
-        partitionOutFile(FileSystem.THREE_GRAM, "Index3GramComplete");
+        partitionOutFile(FileSystem.FREQ_FILE, FileSystem.CONTENT_PARTITION_DIRECTORY, "IndexFreqComplete");
+        partitionOutFile(FileSystem.TWO_GRAM, FileSystem.CONTENT_PARTITION_DIRECTORY, "Index2GramComplete");
+        partitionOutFile(FileSystem.THREE_GRAM, FileSystem.CONTENT_PARTITION_DIRECTORY, "Index3GramComplete");
     }
 }

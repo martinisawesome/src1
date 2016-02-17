@@ -43,10 +43,10 @@ public class TextProcessor<E>
     // | | | | __| | | | __| |/ _ \/ __|
     // | |_| | |_| | | | |_| |  __/\__ \
     // \___/ \__|_|_|_|\__|_|\___||___/
-    public static List<String> tokenizeFile(File textFile) throws IOException
+    public static ArrayList<String> tokenizeFile(File textFile) throws IOException
     {
         // Init method
-        List<String> tokenList = new LinkedList<>();
+        ArrayList<String> tokenList = new ArrayList<>();
         FileReader fr = new FileReader(textFile);
         BufferedReader br = new BufferedReader(fr);
         String curr;
@@ -65,8 +65,6 @@ public class TextProcessor<E>
             String[] strings = curr.split(" ");
             for (String string : strings)
             {
-                //TODO ignore stop words!!!
-
                 // Handle all empty strings
                 token = string.trim();
                 if (!token.isEmpty())
@@ -212,7 +210,7 @@ public class TextProcessor<E>
 
     public void flush() throws IOException
     {
-        writeToFile();
+        //writeToFile();
         writeToFile3();
     }
 
@@ -226,7 +224,7 @@ public class TextProcessor<E>
     private void writeToFile() throws IOException
     {
         Collections.sort(wordCount);
-        FileWriter wr = new FileWriter(FileSystem.CRAWLER_DIRECTORY + FileSystem.FREQ_FILE + (freqFileCount++), false);
+        FileWriter wr = new FileWriter(FileSystem.CONTENT_PARTITION_DIRECTORY + FileSystem.FREQ_FILE + (freqFileCount++), false);
         StringBuilder sb = new StringBuilder();
         for (FreqIndex f : wordCount)
         {
@@ -249,7 +247,7 @@ public class TextProcessor<E>
     {
         Collections.sort(NGramCount);
 
-        FileWriter wr = new FileWriter(FileSystem.CRAWLER_DIRECTORY + FileSystem.THREE_GRAM + (threeGCount++), false);
+        FileWriter wr = new FileWriter(FileSystem.CONTENT_PARTITION_DIRECTORY + FileSystem.FOUR_GRAM + (threeGCount++), false);
         StringBuilder sb = new StringBuilder();
         for (FreqIndex f : NGramCount)
         {

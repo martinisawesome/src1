@@ -1,4 +1,4 @@
-package storage;
+package maps;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
+import storage.FileSystem;
 
 /**
  * Measures the size of each document
@@ -19,6 +20,21 @@ public class DocumentSize
     public DocumentSize()
     {
         map = new HashMap<>();
+    }
+    
+    public int getDocumentSize(int docId)
+    {
+        return map.get(docId);
+    }
+    
+    public void clear()
+    {
+        map.clear();
+    }
+    
+    public int getSize()
+    {
+        return map.size();
     }
 
     /**

@@ -34,6 +34,11 @@ public class FreqIndex<E> implements Comparable<FreqIndex>
     {
         return String.format("%s: %d %d", token, docId, count);
     }
+    
+    public String toSmartString()
+    {
+        return String.format("%s:%d:%d", token, docId, count);
+    }
 
     @Override
     public int compareTo(FreqIndex p2)

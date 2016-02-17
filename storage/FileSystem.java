@@ -1,5 +1,6 @@
 package storage;
 
+import maps.DocumentUrlMap;
 import def.StopWords;
 import java.io.BufferedReader;
 import java.io.File;
@@ -15,21 +16,28 @@ import textprocessor.TextProcessor;
  */
 public class FileSystem
 {
+    public static final String POS = "Pos";
     public static final String TOKEN = "Token";
     public static final String TEXT = "Text";
     public static final String CRAWLER_DIRECTORY = "E:\\Crawl\\";
+    public static final String TFDF_PARTITION_DIRECTORY = CRAWLER_DIRECTORY + "TFDF\\";
     public static final String CONTENT_PARTITION_DIRECTORY = CRAWLER_DIRECTORY + "ContentPart\\";
     public static final String RAW_DIRECTORY = CRAWLER_DIRECTORY + "RAW\\";
     public static final String TOKEN_DIRECTORY = CRAWLER_DIRECTORY + "Token\\";
+    public static final String POSITION_DIRECTORY = CRAWLER_DIRECTORY + "Position\\";
     public static final String TEXT_DIRECTORY = TOKEN_DIRECTORY;
     public static final String CRAWLING_HEADER_DIRECTORY = CRAWLER_DIRECTORY + "Head\\";
+    public static final String ANCHOR_NAME = "Anchor";
     public static final String DOCUMENT_MAP_NAME = "Doc_Map";
+    public static final String DOCUMENT_TITLE_NAME = "Doc_Title";
     public static final String DOCUMENT_SIZE_NAME = "Doc_Size";
     public static final String FREQ_FILE = "IndexFreq";
+    public static final String INDEX_FILE = "Index";
+    public static final String FOUR_GRAM = "Index4Gram";
     public static final String THREE_GRAM = "Index3Gram";
     public static final String TWO_GRAM = "Index2Gram";
 
-    private final DocumentMap documentMap;
+    private final DocumentUrlMap documentMap;
 
     // Store Header Logs
     // Store Content Logs
@@ -37,10 +45,10 @@ public class FileSystem
     // Store Indexer Logs
     public FileSystem()
     {
-        this.documentMap = new DocumentMap();
+        this.documentMap = new DocumentUrlMap();
     }
 
-    public DocumentMap getDocumentMap()
+    public DocumentUrlMap getDocumentMap()
     {
         return documentMap;
     }
@@ -71,6 +79,31 @@ public class FileSystem
      *
      * @return
      */
+    public static LinkedList<File> getAllTermFrequencyFiles()
+    {
+
+        LinkedList<File> domains = new LinkedList<>();
+
+        File directory = new File(CONTENT_PARTITION_DIRECTORY);
+        File[] files = directory.listFiles();
+        if (files != null)
+        {
+            for (File f : files)
+            {
+                if (f.isDirectory())
+                {
+
+                }
+                else if (f.getName().contains(FREQ_FILE)
+                         && !f.getName().contains("Complete"))
+                {
+                    domains.add(f);
+                }
+            }
+        }
+        return domains;
+    }
+
     public static LinkedList<File> getAllTokenTextFiles()
     {
 
@@ -94,81 +127,71 @@ public class FileSystem
         return domains;
     }
 
-    public static void computeFrequencies()
+
+    public static void computeFrequencies() throws IOException
     {
         LinkedList<File> files = getAllTokenTextFiles();
         TextProcessor p = new TextProcessor();
         for (File f : files)
         {
-            try
+            FileReader fr = new FileReader(f);
+            BufferedReader br = new BufferedReader(fr);
+            String curr;
+            ArrayList<String> tokenList = new ArrayList<>();
+
+            // fina all the words in this line
+            while ((curr = br.readLine()) != null)
             {
-                FileReader fr = new FileReader(f);
-                BufferedReader br = new BufferedReader(fr);
-                String curr;
-                ArrayList<String> tokenList = new ArrayList<>();
-
-                // fina all the words in this line
-                while ((curr = br.readLine()) != null)
+                for (String word : curr.split(" "))
                 {
-                    for (String word : curr.split(" "))
+                    //Do not use stop words
+                    boolean isStop = false;
+                    for (String stopWords : StopWords.WORDS)
                     {
-                        //Do not use stop words
-                        boolean isStop = false;
-                        for (String stopWords : StopWords.WORDS)
+                        if (stopWords.equals(word))
                         {
-                            if (stopWords.equals(word))
-                            {
-                                isStop = true;
-                                break;
-                            }
-                        }
-
-                        if (!isStop)
-                        {
-                            // Find file where this belongs
-                            tokenList.add(word);
+                            isStop = true;
+                            break;
                         }
                     }
+
+                    if (!isStop)
+                    {
+                        // Find file where this belongs
+                        tokenList.add(word);
+                    }
                 }
-
-                br.close();
-                fr.close();
-
-                int id = Integer.parseInt(f.getName().replaceAll("[^0-9]", ""));
-
-                //  p.computeNGramFrequencies(id, tokenList, 1);
-                // p.computeNGramFrequencies(id, tokenList, 2);
-                //  p.computeNGramFrequencies(id, tokenList, 3);
             }
-            catch (IOException e)
-            {
-                System.out.println("Cannot read file: " + f.getName());
-                e.printStackTrace();
-            }
+
+            br.close();
+            fr.close();
+
+            int id = Integer.parseInt(f.getName().replaceAll("[^0-9]", ""));
+
+            //p.computeNGramFrequencies(id, tokenList, 1);
+            //p.computeNGramFrequencies(id, tokenList, 2);
+            //p.computeNGramFrequencies(id, tokenList, 3);
         }
 
-        try
-        {
-            p.flush();
-        }
-        catch (IOException ex)
-        {
-            System.out.println("Cannot flush processor");
-            ex.printStackTrace();
-        }
+        p.flush();
+
+        //File f = binaryMergeByAlphabetic(CONTENT_PARTITION_DIRECTORY, THREE_GRAM, 0);
+        //FilePartioning.partitionOutFile(THREE_GRAM, CONTENT_PARTITION_DIRECTORY, f.getName());
+
     }
 
     /**
      * Binary merges all files
      *
+     * @param directoryName
      * @param nameHas(either 3Gram or Freq)
      * @param index
      * @return
      * @throws IOException
      */
-    public static File binaryMergeAllFreq(String nameHas, int index) throws IOException
+    public static File binaryMergeByAlphabetic(String directoryName, String nameHas, int index) throws IOException
     {
-        File directory = new File(CRAWLER_DIRECTORY);
+        File directory = new File(directoryName);
         File[] files = directory.listFiles();
         ArrayList<File> targetFiles = new ArrayList<>();
         if (files == null)
@@ -208,7 +231,7 @@ public class FileSystem
             BufferedReader br0 = new BufferedReader(fr);
             FileReader fr1 = new FileReader(second);
             BufferedReader br1 = new BufferedReader(fr1);
-            FileWriter fw = new FileWriter(CRAWLER_DIRECTORY + nameHas + "0" + (index++));
+            FileWriter fw = new FileWriter(directoryName + nameHas + "0" + (index++));
             StringBuilder sb = new StringBuilder();
             boolean f0Has = true;
             boolean f1Has = true;
@@ -313,7 +336,7 @@ public class FileSystem
         }
 
         // Continually merge until 1 file is left
-        return binaryMergeAllFreq(nameHas, index);
+        return binaryMergeByAlphabetic(directoryName, nameHas, index);
     }
 
 }
