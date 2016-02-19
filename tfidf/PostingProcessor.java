@@ -42,7 +42,7 @@ public class PostingProcessor
             int filelength = fileName.length();
 
             // File Write
-            String fileEnder = fileName.substring(filelength - 2, filelength);
+            String fileEnder = fileName.substring(filelength - 1, filelength);
             File writeFile = new File(DIRECTORY + fileEnder);
             writeFile.delete();
             writeFile.createNewFile();
@@ -127,30 +127,9 @@ public class PostingProcessor
             fr.close();
 
         } //eFor end of directory
-        
+
         megaWriter.close();
         return count;
     }
 
-    public static List<String> getUniqueWords()
-    {
-        LinkedList<String> tokens = new LinkedList<>();
-        File directory = new File(DIRECTORY);
-        File[] files = directory.listFiles();
-
-        for (File f : files)
-        {
-            if (f.isDirectory())
-            {
-
-            }
-            // Otherwise, open and read the file
-            else
-            {
-                // bleh...
-            }
-        }
-
-        return tokens;
-    }
 }

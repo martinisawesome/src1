@@ -1,10 +1,9 @@
-
 package tfidf;
 
 /**
  *
  */
-public class TFIDFPair  implements Comparable<TFIDFPair>
+public class TFIDFPair implements Comparable<TFIDFPair>
 {
     public final int docID;
     public final double weight;
@@ -24,8 +23,22 @@ public class TFIDFPair  implements Comparable<TFIDFPair>
     @Override
     public int compareTo(TFIDFPair p2)
     {
-
-        return this.docID - p2.docID;
-
+        double value = this.weight - p2.weight;
+        if (value > 0)
+        {
+            return -1;
+        }
+        if (value == 0)
+        {
+            return 0;
+        }
+        if (value < 0)
+        {
+            return 1;
+        }
+        else
+        {
+            throw new IllegalArgumentException("Bad weight: " + value);
+        }
     }
 }

@@ -14,9 +14,47 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import storage.FilePartioning;
+import tfidf.DocPair;
 
 public class TextProcessor<E>
 {
+
+    /**
+     * Gets the term frequency list for a word
+     *
+     * @param word
+     * @return
+     * @throws IOException
+     */
+    public static LinkedList getTermFrequencyList(String word) throws IOException
+    {
+        String modWord = word + ":";
+        LinkedList<DocPair> positions = new LinkedList<>();
+        String fileName = FilePartioning.getPartitionFileName(FileSystem.CONTENT_PARTITION_DIRECTORY, word, FileSystem.FREQ_FILE);
+        File file = new File(fileName);
+        FileReader fr = new FileReader(file);
+        BufferedReader br = new BufferedReader(fr);
+        String curr;
+        DocPair p;
+        boolean found = false;
+        while ((curr = br.readLine()) != null)
+        {
+            String[] splits = curr.split(" ");
+            if (splits[0].equals(modWord))
+            {
+                found = true;
+                p = new DocPair(Integer.parseInt(splits[1]), Integer.parseInt(splits[2]));
+                positions.add(p);
+            }
+            else if (found)
+            {
+                break;
+            }
+        }
+        fr.close();
+        return positions;
+    }
 
     private final List<FreqIndex<String>> wordCount;
     private final Map<String, Integer> wordCountMap;

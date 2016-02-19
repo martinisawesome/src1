@@ -16,7 +16,7 @@ import textprocessor.TextProcessor;
  */
 public class FileSystem
 {
-    public static final String POS = "Pos";
+
     public static final String TOKEN = "Token";
     public static final String TEXT = "Text";
     public static final String CRAWLER_DIRECTORY = "E:\\Crawl\\";
@@ -127,7 +127,6 @@ public class FileSystem
         return domains;
     }
 
-
     public static void computeFrequencies() throws IOException
     {
         LinkedList<File> files = getAllTokenTextFiles();
@@ -177,7 +176,6 @@ public class FileSystem
 
         //File f = binaryMergeByAlphabetic(CONTENT_PARTITION_DIRECTORY, THREE_GRAM, 0);
         //FilePartioning.partitionOutFile(THREE_GRAM, CONTENT_PARTITION_DIRECTORY, f.getName());
-
     }
 
     /**
@@ -289,7 +287,40 @@ public class FileSystem
 
                     int compares = parm0[0].compareTo(parm1[0]);
 
-                    if (compares <= 0)
+                    if (compares == 0)
+                    {
+                        if (nameHas.contains(INDEX_FILE))
+                        {
+                            sb.append(curr0);
+                            sb.append("\n");
+                            curr0Clear = true;
+                        }
+                        else
+                        {
+                            int doc0 = Integer.parseInt(parm0[1]);
+                            int doc1 = Integer.parseInt(parm1[1]);
+                            if (doc0 < doc1)
+                            {
+                                sb.append(curr0);
+                                sb.append("\n");
+                                curr0Clear = true;
+                            }
+                            else if (doc0 > doc1)
+                            {
+                                sb.append(curr1);
+                                sb.append("\n");
+                                curr1Clear = true;
+                            }
+                            else
+                            {
+
+                                sb.append(curr0);
+                                sb.append("\n");
+                                curr0Clear = true;
+                            }
+                        }
+                    }
+                    else if (compares < 0)
                     {
                         sb.append(curr0);
                         sb.append("\n");

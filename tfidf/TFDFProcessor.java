@@ -8,8 +8,8 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedList;
+import java.util.PriorityQueue;
 import maps.DocumentSize;
-import storage.FilePartioning;
 import storage.FileSystem;
 
 /**
@@ -39,23 +39,27 @@ public class TFDFProcessor
         docSizer.clear();
     }
 
-    public void writeTfDfFiles() throws IOException
+    public void writeTfDfFiles(boolean ignore) throws IOException
     {
         docSizer.readInFile();
 
         // Get all files that record term frequencies
         LinkedList<File> files = FileSystem.getAllTermFrequencyFiles();
-
+        String head;
+        String curr;
+        PriorityQueue<TFIDFPair> list;
         for (File file : files)
         {
-            String curr;
+
             String prevWord = null;
             String fileName = file.getName();
             int filelength = fileName.length();
 
             // File Write
-            String fileEnder = fileName.substring(filelength - 2, filelength);
-            File writeFile = new File(FileSystem.TFDF_PARTITION_DIRECTORY + fileEnder);
+            String fileEnder = fileName.substring(filelength - 1, filelength);
+            File writeFile = new File(FileSystem.TFDF_PARTITION_DIRECTORY
+                                      + (ignore ? IndexParser.IGNORE : "")
+                                      + fileEnder);
             writeFile.delete();
             writeFile.createNewFile();
             FileWriter fw = new FileWriter(writeFile, false);
@@ -74,6 +78,11 @@ public class TFDFProcessor
                 String word = splits[0].replace(":", "");
                 Integer docID = Integer.parseInt(splits[1]);
                 Integer freqCount = Integer.parseInt(splits[2]);
+                
+                if (ignore && word.matches(".*[0-9].*"))
+                {
+                    continue;
+                }
 
                 if (limit > 0 && docID > limit)
                 {
@@ -83,25 +92,35 @@ public class TFDFProcessor
                 if (word.equals(prevWord))
                 {
                     docIdList.add(new DocPair(docID, freqCount));
-
                 }
                 // Otherwise, start a different word
                 else
                 {
-
                     // write prevWord
                     if (prevWord != null)
                     {
                         Collections.sort(docIdList);
                         StringBuilder sb = new StringBuilder();
+                        head = String.format("%s:", prevWord);
+                        sb.append(head);
                         double docFreq = docIdList.size();
+                        list = new PriorityQueue<>();
                         for (int i = 0; i < docFreq; i++)
                         {
                             DocPair pair = docIdList.get(i);
                             double weight = computeWeight(pair, docFreq);
-                            String string = String.format("%s:%d:%.8f%n", prevWord, pair.docID, weight);
+                            TFIDFPair tf = new TFIDFPair(pair.docID, weight);
+                            list.add(tf);
+                        }
+                        for (int i = 0; i < docFreq; i++)
+                        {
+                            TFIDFPair pair = list.poll();
+                            String string = String.format("%d,%.8f%s", pair.docID, pair.weight,
+                                                          i == docFreq - 1 ? "" : ";");
                             sb.append(string);
                         }
+
+                        sb.append("\n");
                         fw.write(sb.toString());
                     }
 
@@ -114,14 +133,23 @@ public class TFDFProcessor
             // Write the final word
             Collections.sort(docIdList);
             StringBuilder sb = new StringBuilder();
-            int docFreq = docIdList.size();
+            head = String.format("%s:", prevWord);
+            sb.append(head);
+            double docFreq = docIdList.size();
+            list = new PriorityQueue<>();
             for (int i = 0; i < docFreq; i++)
             {
                 DocPair pair = docIdList.get(i);
                 double weight = computeWeight(pair, docFreq);
-                String string = String.format("%s:%d:%.8f%n", prevWord, pair.docID, weight);
+                TFIDFPair tf = new TFIDFPair(pair.docID, weight);
+                list.add(tf);
+            }
+            for (int i = 0; i < docFreq; i++)
+            {
+                TFIDFPair pair = list.poll();
+                String string = String.format("%d,%.8f%s", pair.docID, pair.weight,
+                                              i == docFreq - 1 ? "" : ";");
                 sb.append(string);
-
             }
 
             fw.write(sb.toString());
@@ -150,45 +178,5 @@ public class TFDFProcessor
         //Compute Weight
         double weight = logOldFreq * logOldDoc;
         return weight;
-    }
-
-    /**
-     * Gets the term frequency list for a word
-     *
-     * @param word
-     * @return
-     * @throws IOException
-     */
-    public static LinkedList<DocPair> getTermFrequencyList(String word) throws IOException
-    {
-        String modWord = word + ":";
-        LinkedList<DocPair> positions = new LinkedList<>();
-        String fileName = FilePartioning.getPartitionFileName(FileSystem.CONTENT_PARTITION_DIRECTORY, word, FileSystem.FREQ_FILE);
-        File file = new File(fileName);
-        FileReader fr = new FileReader(file);
-        BufferedReader br = new BufferedReader(fr);
-        String curr;
-        DocPair p;
-        boolean found = false;
-
-        while ((curr = br.readLine()) != null)
-        {
-            String[] splits = curr.split(" ");
-            if (splits[0].equals(modWord))
-            {
-                found = true;
-                p = new DocPair(Integer.parseInt(splits[1]), Integer.parseInt(splits[2]));
-                positions.add(p);
-            }
-            // Otherwise, stop searching if we found the word before
-            else if (found)
-            {
-                break;
-            }
-        }
-
-        fr.close();
-
-        return positions;
     }
 }

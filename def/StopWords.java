@@ -2,6 +2,23 @@ package def;
 
 public class StopWords
 {
+    public static boolean isStop(String word)
+    {
+        for (String stopWords : StopWords.WORDS)
+        {
+            int compare = stopWords.compareTo(word);
+            if (compare == 0)
+            {
+                return true;
+            }
+            else if (compare > 1)
+            {
+                return false;
+            }
+        }
+        return false;
+    }
+
     public static final String[] WORDS =
     {
         "a",
