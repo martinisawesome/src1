@@ -26,11 +26,13 @@ public class SearchThreading
     // Gets the results of the queries <word, result list>
     private final HashMap<String, LinkedList<DocPair>> positionResults;
     private final HashMap<String, LinkedList<TFIDFPair>> weightResults;
+    private final HashMap<String, Double> queryResults;
 
     private final int searchLimit;
     private final boolean searchPositions;
+    private final double N;
 
-    public SearchThreading(boolean searchPositions, int searchLimit)
+    public SearchThreading(int N,boolean searchPositions, int searchLimit, HashMap<String, Double> queryResults)
     {
         inProgressMap = new HashMap<>();
         waitingMap = new HashMap<>();
@@ -38,6 +40,8 @@ public class SearchThreading
         weightResults = new HashMap<>();
         this.searchLimit = searchLimit;
         this.searchPositions = searchPositions;
+        this.queryResults = queryResults;
+        this.N = N;
     }
 
     //  _____      _   _                
@@ -200,6 +204,12 @@ public class SearchThreading
                 try
                 {
                     LinkedList<TFIDFPair> pairs = IndexParser.getWordWeight(word, fileName, searchLimit);
+                    
+                    //Compute TF-IDF of the query terms
+                    
+                    double tf = Math.log10(1 + queryResults.get(word));
+                    double idf = Math.log10(N/ pairs.size());
+                    queryResults.put(word,tf* idf);
 
                     weightResults.put(word, pairs);
                 }

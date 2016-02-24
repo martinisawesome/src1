@@ -1,5 +1,6 @@
 
 import engine.Engine;
+import engine.PrintHelper;
 import java.io.IOException;
 import maps.DocumentSize;
 import tfidf.*;
@@ -11,7 +12,32 @@ public class Main
 {
     public static void main(String[] args) throws Exception
     {
+        long startTime = System.nanoTime();
+
         //demo();
+        
+        
+//        PrintHelper.printNice(Engine.search(" mondego"));
+//        PrintHelper.printNice(Engine.search(" Crista Lopes"));
+//        PrintHelper.printNice(Engine.search("   "));
+        
+//        Engine.search(" mondego");
+//        Engine.search("machine learning");
+//        Engine.search(" software engineering");
+//        Engine.search(" security");
+//        Engine.search(" student affairs");
+//        Engine.search(" graduate courses");
+//        Engine.search(" Crista Lopes");
+//        Engine.search(" REST");
+//        Engine.search(" computer games");
+//        Engine.search(" information retrieval");
+
+
+        long completionTime = System.nanoTime() - startTime;
+        double time = completionTime / 1000;
+        time = time / 1000;
+        System.out.println(
+                String.format("Time to completion: %.03fms", time));
     }
 
     /**

@@ -20,6 +20,7 @@ public class FileSystem
     public static final String TOKEN = "Token";
     public static final String TEXT = "Text";
     public static final String CRAWLER_DIRECTORY = "E:\\Crawl\\";
+    public static final String MISC_PARTITION_DIRECTORY = CRAWLER_DIRECTORY + "Misc\\";
     public static final String TFDF_PARTITION_DIRECTORY = CRAWLER_DIRECTORY + "TFDF\\";
     public static final String CONTENT_PARTITION_DIRECTORY = CRAWLER_DIRECTORY + "ContentPart\\";
     public static final String RAW_DIRECTORY = CRAWLER_DIRECTORY + "RAW\\";
@@ -43,7 +44,7 @@ public class FileSystem
     // Store Content Logs
     // Store Document ID logs
     // Store Indexer Logs
-    public FileSystem()
+    public FileSystem() throws IOException
     {
         this.documentMap = new DocumentUrlMap();
     }

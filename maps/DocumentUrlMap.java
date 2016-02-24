@@ -7,7 +7,6 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.LinkedList;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import storage.FileSystem;
@@ -15,23 +14,34 @@ import storage.FileSystem;
 /**
  * Tracks which document ID is associated with what URL
  */
-public class DocumentUrlMap
+public final class DocumentUrlMap
 {
     private final HashMap<Integer, String> map;
 
-    public DocumentUrlMap()
+    public DocumentUrlMap() throws IOException
     {
         map = new HashMap<>();
-        //readInFile();
+        readInFile();
 
+    }
+
+    public HashMap<String, LinkedList<Integer>> urlMatches(HashMap<String, Double> word)
+    {
+        HashMap<String, LinkedList<Integer>> urlMap = new HashMap<>();
+        for (String s : word.keySet())
+        {
+            urlMap.put(s, urlMatches(s));
+        }
+        return urlMap;
     }
 
     /**
      * Call this method to check if the URL is relevant!
+     *
      * @param word
-     * @return 
+     * @return
      */
-    public List<Integer> urlMatches(String word)
+    public LinkedList<Integer> urlMatches(String word)
     {
         LinkedList<Integer> docId = new LinkedList<>();
         String shortened = shortUrl(word);
@@ -51,10 +61,10 @@ public class DocumentUrlMap
                 docId.add(entry.getKey());
             }
         }
-        
+
         return docId;
     }
-    
+
     public void readInFile() throws IOException
     {
         File file = new File(FileSystem.CRAWLER_DIRECTORY + FileSystem.DOCUMENT_MAP_NAME);
@@ -90,7 +100,6 @@ public class DocumentUrlMap
         wr.close();
     }
 
-
     private String shortUrl(String word)
     {
         String shortened = word.replace("https://", "").replace("http://", "");
@@ -105,6 +114,11 @@ public class DocumentUrlMap
     public Set<Integer> getAllIds()
     {
         return map.keySet();
+    }
+
+    public String get(Integer docId)
+    {
+        return map.get(docId);
     }
 
 }
