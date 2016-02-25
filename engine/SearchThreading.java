@@ -246,7 +246,7 @@ public class SearchThreading
         while ((curr = br.readLine()) != null)
         {
             String[] splits = curr.split(" ");
-            for (String word : splits)
+            for (final String word : splits)
             {
                 String posFileName = IndexParser.getPositionFile(word);
                 String weiFileName = IndexParser.getWeightFile(word);

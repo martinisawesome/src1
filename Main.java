@@ -2,6 +2,7 @@
 import engine.Engine;
 import engine.PrintHelper;
 import java.io.IOException;
+import java.util.List;
 import maps.DocumentSize;
 import tfidf.*;
 
@@ -14,30 +15,38 @@ public class Main
     {
         long startTime = System.nanoTime();
 
-        //demo();
-        
-        
-//        PrintHelper.printNice(Engine.search(" mondego"));
-//        PrintHelper.printNice(Engine.search(" Crista Lopes"));
-//        PrintHelper.printNice(Engine.search("   "));
-        
-//        Engine.search(" mondego");
-//        Engine.search("machine learning");
-//        Engine.search(" software engineering");
-//        Engine.search(" security");
-//        Engine.search(" student affairs");
-//        Engine.search(" graduate courses");
-//        Engine.search(" Crista Lopes");
-//        Engine.search(" REST");
-//        Engine.search(" computer games");
-//        Engine.search(" information retrieval");
-
+        getPrint(" mondego");
+        getPrint("machine learning");
+        getPrint(" software engineering");
+        getPrint(" security");
+        getPrint(" student affairs");
+        getPrint(" graduate courses");
+        getPrint(" Crista Lopes");
+        getPrint(" REST");
+        getPrint(" computer games");
+        getPrint(" information retrieval");
 
         long completionTime = System.nanoTime() - startTime;
         double time = completionTime / 1000;
         time = time / 1000;
         System.out.println(
                 String.format("Time to completion: %.03fms", time));
+    }
+
+    private static void getPrint(String words)
+    {
+        StringBuilder sb = new StringBuilder();
+        sb.append(words);
+        List<String> urls = Engine.search(words);
+        
+        for (String url : urls)
+        {
+            sb.append("\n  ");
+            sb.append(url);                         // TODO this is the URL!!
+            sb.append("\n  ");
+            sb.append(Engine.getTextSnippet(url));  // TODO this is the test snippet!!
+        }
+        System.out.println(sb.toString());
     }
 
     /**

@@ -21,6 +21,7 @@ import tfidf.TFIDFPair;
  */
 public class Engine
 {
+    private static final boolean GET_TEXT_SNIPPET = true;
     private static final int QUERIES_TO_SHOW = 20;
     private static final boolean PRINT_WEIGHTS = false;
     private static final int LIMIT = -1;
@@ -28,6 +29,7 @@ public class Engine
     private static HashMap<String, LinkedList<TFIDFPair>> tfidfResults;
     private static HashMap<String, LinkedList<DocPair>> posResults;
     private static DocumentUrlMap URL_DOCUMENT_MAP;
+    private static HashMap<String, String> urlToTextSnippetMap;
 
     // ______          __                       _____       _         _____                
     // | ___ \        / _|                     |  _  |     | |       |  _  |               
@@ -49,19 +51,25 @@ public class Engine
         }
     }
 
-    /**
-     *
-     * @param pos
-     * @param modWords
-     * @return
-     */
-    public static List<String> search(boolean pos, String... modWords)
+    public static String getTextSnippet(String url)
+    {
+        return urlToTextSnippetMap.get(url);
+    }
+
+    
+    //  _____                     _      ___  ___     _   _               _ 
+    // /  ___|                   | |     |  \/  |    | | | |             | |
+    // \ `--.  ___  __ _ _ __ ___| |__   | .  . | ___| |_| |__   ___   __| |
+    //  `--. \/ _ \/ _` | '__/ __| '_ \  | |\/| |/ _ \ __| '_ \ / _ \ / _` |
+    // /\__/ /  __/ (_| | | | (__| | | | | |  | |  __/ |_| | | | (_) | (_| |
+    // \____/ \___|\__,_|_|  \___|_| |_| \_|  |_/\___|\__|_| |_|\___/ \__,_|
+    public static List<String> search(boolean pos, String... searchTerms)
     {
         clear();
 
         // Find all the query words
         HashMap<String, Double> queryWords = new HashMap<>();
-        for (String modWord1 : modWords)
+        for (String modWord1 : searchTerms)
         {
             String modWord = modWord1.toLowerCase();
             modWord = modWord.replaceAll("[^a-zA-Z0-9]", "").trim();    // Remove all non-alphanumeric chars
@@ -98,8 +106,6 @@ public class Engine
 
         // start in URL (skip this, takes too long!)
         //HashMap<String, LinkedList<Integer>> urlMap = URL_DOCUMENT_MAP.urlMatches(queryWords);
-        
-        
         // Wait for other indexers to finish!
         while (titleMap.isAlive() || anchorMap.isAlive() || anchorMap.isAlive())
         {
@@ -133,7 +139,6 @@ public class Engine
         findBestestWords(docToWeightMap, topDocuments, titleMappings);
         findBestestWords(docToWeightMap, topDocuments, anchorMappings);
 
-        //TODO anchor texts!!!
         //======================================================================
         // Compute the simple values
         LinkedList<TFIDFPair> newList;
@@ -202,6 +207,7 @@ public class Engine
         //======================================================================
 
         // find the best documents after alligning
+        // only find the top n documents for reuslts
         while (topDocuments.size() < QUERIES_TO_SHOW && !newList.isEmpty())
         {
             Integer docId = newList.removeFirst().docID;
@@ -211,12 +217,50 @@ public class Engine
             }
         }
 
+        //======================================================================
+        //  combine positions of queries that use multiple words
+//        List<DocPair> reformedPosList = new LinkedList<>();
+//        for (Entry<String, LinkedList<DocPair>> entry : posResults.entrySet())
+//        {
+//            //is test constains queryWords
+//        }
+
+        // Get the snippets of top documents
+        TextHelper t = new TextHelper();
+        LinkedList<Integer> processId = new LinkedList<>();     //only process each document once!
+        if (GET_TEXT_SNIPPET)
+        {
+            for (Entry<String, LinkedList<DocPair>> entry : posResults.entrySet())
+            {
+                for (DocPair docP : entry.getValue())
+                {
+                    Integer docId = docP.docID;
+                    if (topDocuments.contains(docId) && !processId.contains(docId))
+                    {
+                        t.getSnippet(docId, docP.pos);
+                        processId.add(docId);
+
+                    }
+                }
+            }
+
+            while (t.isAlive())
+            {
+                // wait for all threads to die
+            }
+        }
+        //======================================================================
+
         // Return URL list from URL Document Map
         ArrayList<String> results = new ArrayList<>();
         for (Integer i : topDocuments)
         {
-            results.add(URL_DOCUMENT_MAP.get(i));
+         
+            String url = URL_DOCUMENT_MAP.get(i);
+            results.add(url);
+            urlToTextSnippetMap.put(url, t.get(i));
         }
+        //======================================================================
 
         // Clear objects!
         titleMap.clear();
@@ -225,6 +269,12 @@ public class Engine
         return results;
     }
 
+    //  _____          _  ___  ___     _   _               _ 
+    // |  ___|        | | |  \/  |    | | | |             | |
+    // | |__ _ __   __| | | .  . | ___| |_| |__   ___   __| |
+    // |  __| '_ \ / _` | | |\/| |/ _ \ __| '_ \ / _ \ / _` |
+    // | |__| | | | (_| | | |  | |  __/ |_| | | | (_) | (_| |
+    // \____/_| |_|\__,_| \_|  |_/\___|\__|_| |_|\___/ \__,_|
     public static List<String> search(String words)
     {
         if (words.trim().isEmpty())
@@ -244,6 +294,8 @@ public class Engine
 
     private static void clear()
     {
+        urlToTextSnippetMap = new HashMap();
+
         // clear
         if (tfidfResults != null)
         {

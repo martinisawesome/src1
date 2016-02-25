@@ -21,7 +21,7 @@ public class QueryHelper
         if (query.isEmpty())
         {
             List<ArrayList<String>> result = new ArrayList<>();
-            result.add(new ArrayList<>());
+            result.add(new ArrayList<String>());
             return result;
         }
         
