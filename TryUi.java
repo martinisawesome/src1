@@ -30,13 +30,17 @@ class TryUi	extends JFrame
     {
 
         setLocation(400,300);
-        resize(new Dimension(1000, 1000));
+//        resize(new Dimension(1000, 1000));
         setDefaultCloseOperation(EXIT_ON_CLOSE);
 
 
         main = new JPanel(new BorderLayout());
+        main.setPreferredSize(new Dimension(1500, 500));
+        main.setFont(new Font(main.getFont().getName(), main.getFont().getStyle(), 36));
         top = new JPanel(new GridLayout(1,2));
+        top.setFont(new Font(top.getFont().getName(), top.getFont().getStyle(), 36));
         bottom = new JPanel();
+        bottom.setFont(new Font(bottom.getFont().getName(), bottom.getFont().getStyle(), 36));
         searchButton = new Button("Search");
         searchField = new TextField();
 
@@ -85,6 +89,7 @@ class TryUi	extends JFrame
 
         // Create a new listbox control
         listbox = new JList<String>();
+        listbox.setFont(new Font(listbox.getFont().getName(), listbox.getFont().getStyle(), 36));
         listbox.setCellRenderer(new MyListCellRenderer());
         listbox.addListSelectionListener(new ListSelectionListener() {
 
