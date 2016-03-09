@@ -8,7 +8,10 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedList;
+import java.util.List;
+import java.util.regex.Pattern;
 import textprocessor.TextProcessor;
 
 /**
@@ -75,6 +78,141 @@ public class FileSystem
         folder.delete();
     }
 
+    public static int processTokenPages()
+    {
+        // Clear all text data before making new
+        FileSystem.clearTextData();
+        LinkedList<String> pages = new LinkedList<>();
+
+        for (File page : getAllContentTextFiles())   //turns all files into text only
+        {
+
+            try
+            {
+                if (page == null)
+                {
+                    continue;
+                }
+
+                if (!pages.contains(page.getName()))
+                {
+                    List<String> tokenList = TextProcessor.tokenizeFile(page);
+
+                    //don't process empty files...
+                    if (tokenList.isEmpty())
+                    {
+                        continue;
+                    }
+
+                    File content = new File(FileSystem.TOKEN_DIRECTORY + page.getName() + FileSystem.TOKEN);
+                    FileWriter wr = new FileWriter(content, false);
+                    StringBuilder sb = new StringBuilder();
+                    int counter = 0;
+                    for (String s : tokenList)
+                    {
+                        sb.append(s);
+                        counter++;
+
+                        if (counter % 100 == 0)
+                        {
+                            sb.append("\n");
+                        }
+                        else
+                        {
+                            sb.append(" ");
+                        }
+
+                        if (counter > 5000)
+                        {
+                            counter = 0;
+                            wr.write(sb.toString());
+                            sb = new StringBuilder();
+                        }
+                    }
+                    wr.write(sb.toString());
+                    wr.close();
+
+                    //==================================================================
+                    pages.add(page.getName());
+                }
+                else
+                {
+                    //System.out.println("Duplicate Page: " + page.getName());
+                }
+            }
+            catch (IOException e)
+            {
+                System.out.println("Failed to open and tokenize a file: " + page.getName());
+                e.printStackTrace();
+            }
+        }
+
+        return pages.size();
+    }
+
+    /**
+     * Clears all files with content only
+     */
+    public static void clearTextData()
+    {
+        File[] files = new File(TOKEN_DIRECTORY).listFiles();
+        if (files != null)
+        {
+            for (File f : files)
+            {
+                if (f.getName().contains(TEXT))
+                {
+
+                    f.delete();
+                }
+            }
+        }
+    }
+
+    public static void clearContentData()
+    {
+        File[] files = new File(CONTENT_PARTITION_DIRECTORY).listFiles();
+        if (files != null)
+        {
+            for (File f : files)
+            {
+
+                f.delete();
+
+            }
+        }
+    }
+
+    /**
+     * Looks for all files with Token in it
+     *
+     * @return
+     */
+    public static LinkedList<File> getAllGramFiles()
+    {
+
+        LinkedList<File> domains = new LinkedList<>();
+
+        File directory = new File(CONTENT_PARTITION_DIRECTORY);
+        File[] files = directory.listFiles();
+        if (files != null)
+        {
+            for (File f : files)
+            {
+                if (f.isDirectory())
+                {
+
+                }
+                else if (f.getName().contains("Gram")
+                         && !f.getName().contains("Complete"))
+                {
+                    domains.add(f);
+                }
+            }
+        }
+        return domains;
+    }
+
     /**
      * Looks for all files with Token in it
      *
@@ -128,12 +266,16 @@ public class FileSystem
         return domains;
     }
 
-    public static void computeFrequencies() throws IOException
+    public static void computeFrequencies(int n) throws IOException
     {
         LinkedList<File> files = getAllTokenTextFiles();
         TextProcessor p = new TextProcessor();
         for (File f : files)
         {
+
+            int id = Integer.parseInt(f.getName().replaceAll("[^0-9]", ""));
+           
+            
             FileReader fr = new FileReader(f);
             BufferedReader br = new BufferedReader(fr);
             String curr;
@@ -166,17 +308,11 @@ public class FileSystem
             br.close();
             fr.close();
 
-            int id = Integer.parseInt(f.getName().replaceAll("[^0-9]", ""));
-
-            //p.computeNGramFrequencies(id, tokenList, 1);
-            //p.computeNGramFrequencies(id, tokenList, 2);
-            //p.computeNGramFrequencies(id, tokenList, 3);
+            p.computeNGramFrequencies(id, tokenList, n);
         }
 
-        p.flush();
+        p.flush(n);
 
-        //File f = binaryMergeByAlphabetic(CONTENT_PARTITION_DIRECTORY, THREE_GRAM, 0);
-        //FilePartioning.partitionOutFile(THREE_GRAM, CONTENT_PARTITION_DIRECTORY, f.getName());
     }
 
     /**
@@ -370,5 +506,134 @@ public class FileSystem
         // Continually merge until 1 file is left
         return binaryMergeByAlphabetic(directoryName, nameHas, index);
     }
+
+    /**
+     * Parses all files to retrieve content from all files, and creates new files with content only.
+     * We will also pull the subdomain name from first line of file
+     *
+     * @return
+     */
+    public static LinkedList<File> getAllContentTextFiles()
+    {
+        LinkedList<Integer> hashedContents = new LinkedList<>();
+        Pattern numberic = Pattern.compile("[0-9]*$");
+
+        LinkedList<File> domains = new LinkedList<>();
+        File directory = new File(RAW_DIRECTORY);
+        File[] files = directory.listFiles();
+        if (files != null)
+        {
+            for (File f : files)
+            {
+                if (f.isDirectory())
+                {
+
+                }
+                else if (numberic.matcher(f.getName()).matches() && !f.getName().contains("Crawler"))
+                {
+                    File file = parseContentFileForText(hashedContents, f);
+                    if (file != null)
+                    {
+                        domains.add(file);
+                    }
+                }
+            }
+        }
+        return domains;
+    }
+
+    /**
+     * Parses a content file and returns a new file with no HTML markup
+     *
+     * @param hashedContents
+     * @param titles
+     * @param file
+     * @return
+     */
+    private static File parseContentFileForText(LinkedList<Integer> hashedContents, File file)
+    {
+        File contentFile = new File(TOKEN_DIRECTORY + TEXT + file.getName());
+        boolean badFile = false;
+        try
+        {
+            StringBuilder sb = new StringBuilder();
+            FileWriter wr = new FileWriter(contentFile, false);
+            FileReader fr = new FileReader(file);
+            BufferedReader br = new BufferedReader(fr);
+            String curr;
+            boolean found = false;
+            String url = br.readLine();
+            //  documentMap.add(Integer.parseInt(file.getName()), url);
+
+            //Scan for the Sub-Domains text line
+            while ((curr = br.readLine()) != null)
+            {
+                if (!found)
+                {
+                    if ("#Title#".equals(curr))
+                    {
+                        //Skip Title of the text
+                        while (!"#Text#".equals(curr = br.readLine()))
+                        {
+                            // keep skipping title
+                        }
+                        found = true;
+                    }
+                    else if ("#Text#".equals(curr))
+                    {
+                        found = true;
+
+                    }
+                    else
+                    {
+                        throw new IllegalArgumentException("No text after header!");
+                    }
+                }   //end if found
+
+                //Do not include HTML markup
+                if (curr.equals(SPACER))
+                {
+                    break;
+                }
+                else if (found && !curr.isEmpty() && !curr.contains("#Text#"))
+                {
+                    sb.append(curr);
+                    sb.append(' ');
+                }
+
+            }
+
+            String strings = sb.toString();
+            int hash = strings.hashCode();
+            if (hashedContents.contains(hash))
+            {
+                //System.out.println("Duplicate hash for file: " + file.getName() + " with hash: " + hash);
+                badFile = true;
+            }
+            else
+            {
+                //System.out.println("  Hasing file: " + file.getName() + " with hash " + hash);
+                hashedContents.add(hash);
+            }
+
+            wr.write(strings);
+            fr.close();
+            wr.close();
+        }
+
+        catch (IOException ex)
+        {
+            throw new RuntimeException(ex);
+        }
+
+        // Do not return duplicate hashed files
+        if (badFile)
+        {
+            return null;
+        }
+
+        return contentFile;
+    }
+    public static final String SPACER = "============================================================";
 
 }

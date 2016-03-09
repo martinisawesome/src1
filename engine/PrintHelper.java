@@ -53,6 +53,8 @@ public class PrintHelper<E>
             LinkedList<E> value = entry.getValue();
             String key = entry.getKey();
             sb.append(key);
+            sb.append(" ");
+            sb.append(value.size());
             sb.append(": ");
             sb.append(value);
             sb.append("\n");

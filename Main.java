@@ -1,9 +1,10 @@
 
 import engine.Engine;
-import engine.PrintHelper;
+import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import maps.DocumentSize;
+import storage.FilePartioning;
+import storage.FileSystem;
 import tfidf.*;
 
 /**
@@ -38,54 +39,43 @@ public class Main
         StringBuilder sb = new StringBuilder();
         sb.append(words);
         List<String> urls = Engine.search(words);
-        
+
         for (String url : urls)
         {
             sb.append("\n  ");
-            sb.append(url);                         // TODO this is the URL!!
-            sb.append("\n  ");
-            sb.append(Engine.getTextSnippet(url));  // TODO this is the test snippet!!
+            sb.append(url);
+            sb.append("\n    ");
+            sb.append(Engine.getTextSnippet(url));
         }
         System.out.println(sb.toString());
     }
 
-    /**
-     * Does a demo of just 100 files
-     *
-     * @throws Exception
-     */
-    private static void demo() throws Exception
+    public static void getGramFiles() throws IOException
     {
-        // TODO move all position and TFDF files before running this
+        //FileSystem.processTokenPages();
+        FileSystem.clearContentData();
+        FileSystem.computeFrequencies(1);
+        FileSystem.computeFrequencies(2);
+        FileSystem.computeFrequencies(3);
+        FileSystem.computeFrequencies(4);
+        File f = FileSystem.binaryMergeByAlphabetic(FileSystem.CONTENT_PARTITION_DIRECTORY, FileSystem.FREQ_FILE, 0);
+        FilePartioning.partitionOutFile(FileSystem.FREQ_FILE, FileSystem.CONTENT_PARTITION_DIRECTORY, f.getName());
 
-        // Get all positions
-        System.out.println("Finding positions of all tokens in documents");
-        PositionProcessor p = new PositionProcessor(100);
-        p.positionAllFiles();
+        f = FileSystem.binaryMergeByAlphabetic(FileSystem.CONTENT_PARTITION_DIRECTORY, FileSystem.TWO_GRAM, 0);
 
-        // Create TFDF file partitions
-        TFDFProcessor tf = new TFDFProcessor(100);
-        tf.writeTfDfFiles(false);
+        FilePartioning.partitionOutFile(FileSystem.TWO_GRAM, FileSystem.CONTENT_PARTITION_DIRECTORY, f.getName());
 
-        System.out.println("Generating index per document");
-    }
+        f = FileSystem.binaryMergeByAlphabetic(FileSystem.CONTENT_PARTITION_DIRECTORY, FileSystem.THREE_GRAM, 0);
+        FilePartioning.partitionOutFile(FileSystem.THREE_GRAM, FileSystem.CONTENT_PARTITION_DIRECTORY, f.getName());
+        f = FileSystem.binaryMergeByAlphabetic(FileSystem.CONTENT_PARTITION_DIRECTORY, FileSystem.FOUR_GRAM, 0);
+        FilePartioning.partitionOutFile(FileSystem.FOUR_GRAM, FileSystem.CONTENT_PARTITION_DIRECTORY, f.getName());
 
-    public static void performEverything() throws IOException
-    {
-
-        PositionProcessor p = new PositionProcessor();
-        p.positionAllFiles();
-
-        // TFIDF postings
         TFDFProcessor tf = new TFDFProcessor();
         tf.writeTfDfFiles(true);
         tf.writeTfDfFiles(false);
-        //  TF postings
-        System.out.println("Number of Unique Tokens: " + PostingProcessor.createPostingsFiles());
-        DocumentSize s = new DocumentSize();
-        s.readInFile();
-        System.out.println("Number of documents: " + s.getSize());
-        s.clear();
-
+        tf.writeGramTfDfFiles(true);
+        tf.writeGramTfDfFiles(false);
+        PositionProcessor p = new PositionProcessor();
+        p.positionAllFiles();
     }
 }

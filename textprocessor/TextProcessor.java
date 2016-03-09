@@ -92,8 +92,6 @@ public class TextProcessor<E>
 
         while ((curr = br.readLine()) != null)
         {
-            //curr = scanner.next();
-            curr = curr.toLowerCase();
 
             // Hyphenated words treated as different words for now
             curr = curr.replace("'", "");                   // Handle apostrophe differently
@@ -103,11 +101,55 @@ public class TextProcessor<E>
             String[] strings = curr.split(" ");
             for (String string : strings)
             {
-                // Handle all empty strings
-                token = string.trim();
-                if (!token.isEmpty())
+                string = string.trim();
+                ArrayList<Integer> upperCase = new ArrayList<>();
+                //DISCLAIMER! This code to count uppercase letters taken from StackOverflow
+                if (string.length() > 8)
                 {
-                    tokenList.add(token);
+                    for (int k = 0; k < string.length(); k++)
+                    {
+
+                        if (Character.isUpperCase(string.charAt(k)))
+                        {
+                            upperCase.add(k);
+                        }
+
+                    }
+
+                    int prev = 0;
+                    for (Integer location : upperCase)
+                    {
+                        if (location > prev + 2)
+                        {
+                            string = string.substring(0, location) + " " + string.substring(location, string.length());
+                        }
+                        location = prev;
+                    }
+
+                    String[] s = string.split(" ");
+                    for (String a : s)
+                    {
+                        a = a.toLowerCase();
+
+                        // Handle all empty strings
+                        token = a.trim();
+                        if (!token.isEmpty())
+                        {
+                            tokenList.add(token);
+                        }
+                    }
+
+                }// END of Disclaimer!
+                else
+                {
+                    string = string.toLowerCase();
+
+                    // Handle all empty strings
+                    token = string.trim();
+                    if (!token.isEmpty())
+                    {
+                        tokenList.add(token);
+                    }
                 }
             }
 
@@ -174,22 +216,22 @@ public class TextProcessor<E>
                 wordCountMap.put(token, index);
             }
 
-            if (wordCount.size() > 160000)
+            if (wordCount.size() > 80000)
             {
                 writeToFile();
             }
         }
-
+        writeToFile();
     }
 
     public void computeNGramFrequencies(int docId, ArrayList<String> tokenList, int n) throws IOException
     {
         if (n == 1)
         {
-            computeWordFrequencies( docId,  tokenList);
+            computeWordFrequencies(docId, tokenList);
             return;
         }
-        
+
         String[] pos = new String[n];
 
         if (tokenList.size() < n)
@@ -239,17 +281,24 @@ public class TextProcessor<E>
                 NGramMap.put(gram, index);
             }
 
-            if (NGramCount.size() > 80000)
+            if (NGramCount.size() > 40000)
             {
-                writeToFile3();
+                writeToFile3(n);
             }
-        }
+        } //eFor
+        writeToFile3(n);
     }
 
-    public void flush() throws IOException
+    public void flush(int n) throws IOException
     {
-        //writeToFile();
-        writeToFile3();
+        if (n == 1)
+        {
+            writeToFile();
+        }
+        else
+        {
+            writeToFile3(n);
+        }
     }
 
     /**
@@ -281,11 +330,11 @@ public class TextProcessor<E>
      *
      * @throws IOException
      */
-    private void writeToFile3() throws IOException
+    private void writeToFile3(int n) throws IOException
     {
         Collections.sort(NGramCount);
 
-        FileWriter wr = new FileWriter(FileSystem.CONTENT_PARTITION_DIRECTORY + FileSystem.FOUR_GRAM + (threeGCount++), false);
+        FileWriter wr = new FileWriter(FileSystem.CONTENT_PARTITION_DIRECTORY + FileSystem.INDEX_FILE + n + "Gram" + (threeGCount++), false);
         StringBuilder sb = new StringBuilder();
         for (FreqIndex f : NGramCount)
         {

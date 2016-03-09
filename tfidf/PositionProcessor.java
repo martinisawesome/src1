@@ -86,7 +86,7 @@ public class PositionProcessor
         f = FileSystem.binaryMergeByAlphabetic(PositionProcessor.DIRECTORY, TEMP_HEADER1, 0);
         FilePartioning.partitionOutFile(TEMP_HEADER1, PositionProcessor.DIRECTORY, f.getName());
 
-        //shortenFile();
+        shortenFile();
     }
 
     /**

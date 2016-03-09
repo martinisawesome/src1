@@ -75,9 +75,9 @@ public class FilePartioning
 
     public static void partitionAll() throws IOException
     {
-        partitionOutFile(FileSystem.FREQ_FILE, FileSystem.CONTENT_PARTITION_DIRECTORY, "IndexFreqComplete");
+        //partitionOutFile(FileSystem.FREQ_FILE, FileSystem.CONTENT_PARTITION_DIRECTORY, "IndexFreqComplete");
         partitionOutFile(FileSystem.TWO_GRAM, FileSystem.CONTENT_PARTITION_DIRECTORY, "Index2GramComplete");
         partitionOutFile(FileSystem.THREE_GRAM, FileSystem.CONTENT_PARTITION_DIRECTORY, "Index3GramComplete");
-        partitionOutFile(FileSystem.THREE_GRAM, FileSystem.CONTENT_PARTITION_DIRECTORY, "Index4GramComplete");
+        partitionOutFile(FileSystem.FOUR_GRAM, FileSystem.CONTENT_PARTITION_DIRECTORY, "Index4GramComplete");
     }
 }

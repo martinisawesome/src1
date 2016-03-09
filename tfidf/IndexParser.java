@@ -39,26 +39,40 @@ public class IndexParser
         return fileName;
     }
 
-    public static String getWeightFile(String word)
+    public static String getFile(String directory, String header, String word)
     {
         String fileName;
         File file;
         if (!word.matches(".*[0-9].*"))
         {
-            fileName = FilePartioning.getPartitionFileName(FileSystem.TFDF_PARTITION_DIRECTORY, IGNORE, word);
+            fileName = FilePartioning.getPartitionFileName(directory, header + IGNORE, word);
             file = new File(fileName);
             if (!file.exists())
             {
-                fileName = FilePartioning.getPartitionFileName(FileSystem.TFDF_PARTITION_DIRECTORY, "", word);
+                fileName = FilePartioning.getPartitionFileName(directory, header, word);
 
             }
         }
         else
         {
-            fileName = FilePartioning.getPartitionFileName(FileSystem.TFDF_PARTITION_DIRECTORY, "", word);
+            fileName = FilePartioning.getPartitionFileName(directory, header, word);
 
         }
         return fileName;
+    }
+
+    public static String getGramFile(String word, int gram)
+    {
+
+        String header = gram + "Gram";
+        return getFile(FileSystem.TFDF_PARTITION_DIRECTORY, header, word);
+    }
+
+    public static String getWeightFile(String word)
+    {
+
+        return getFile(FileSystem.TFDF_PARTITION_DIRECTORY, "", word);
+
     }
 
     /**
@@ -194,7 +208,7 @@ public class IndexParser
                     String[] pair = split.split(",");
                     p = new TFIDFPair(Integer.parseInt(pair[0]), Double.parseDouble(pair[1]));
                     positions.add(p);
-                    
+
                     count++;
                     if (limit != -1 && count >= limit)
                     {
@@ -218,5 +232,4 @@ public class IndexParser
         fr.close();
         return positions;
     }
-
 }

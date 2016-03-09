@@ -6,12 +6,17 @@ package tfidf;
 public class TFIDFPair implements Comparable<TFIDFPair>
 {
     public final int docID;
-    public final double weight;
+    public  double weight;
 
     public TFIDFPair(int docID, double pos)
     {
         this.docID = docID;
         this.weight = pos;
+    }
+    
+    public void incWeight(double inc)
+    {
+        this.weight += inc;
     }
 
     @Override

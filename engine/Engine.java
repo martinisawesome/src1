@@ -9,7 +9,10 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map.Entry;
+import java.util.PriorityQueue;
 import java.util.Set;
+import links.AuthPair;
+import links.AuthorityMap;
 import maps.AnchorTextMap;
 import maps.DocumentUrlMap;
 import maps.TitleMap;
@@ -21,15 +24,17 @@ import tfidf.TFIDFPair;
  */
 public class Engine
 {
-    private static final boolean GET_TEXT_SNIPPET = true;
+    private static final boolean GET_TEXT_SNIPPET = true;       // controls whether to pull text snippets
     private static final int QUERIES_TO_SHOW = 20;
     private static final boolean PRINT_WEIGHTS = false;
     private static final int LIMIT = -1;
 
+    private static HashMap<String, LinkedList<TFIDFPair>> gramResults;
     private static HashMap<String, LinkedList<TFIDFPair>> tfidfResults;
     private static HashMap<String, LinkedList<DocPair>> posResults;
     private static DocumentUrlMap URL_DOCUMENT_MAP;
     private static HashMap<String, String> urlToTextSnippetMap;
+    private static AuthorityMap authMap;
 
     // ______          __                       _____       _         _____                
     // | ___ \        / _|                     |  _  |     | |       |  _  |               
@@ -42,11 +47,13 @@ public class Engine
     {
         try
         {
+            authMap = new AuthorityMap();
             URL_DOCUMENT_MAP = new DocumentUrlMap();
             URL_DOCUMENT_MAP.readInFile();
         }
         catch (IOException ex)
         {
+            ex.printStackTrace();
             throw new RuntimeException(ex);
         }
     }
@@ -56,7 +63,6 @@ public class Engine
         return urlToTextSnippetMap.get(url);
     }
 
-    
     //  _____                     _      ___  ___     _   _               _ 
     // /  ___|                   | |     |  \/  |    | | | |             | |
     // \ `--.  ___  __ _ _ __ ___| |__   | .  . | ___| |_| |__   ___   __| |
@@ -94,7 +100,7 @@ public class Engine
         }
 
         // first find in index
-        findIndex(pos, queryWords);
+        findIndex(GET_TEXT_SNIPPET, queryWords);
 
         // Start Title Map
         TitleMap titleMap = new TitleMap();
@@ -107,7 +113,7 @@ public class Engine
         // start in URL (skip this, takes too long!)
         //HashMap<String, LinkedList<Integer>> urlMap = URL_DOCUMENT_MAP.urlMatches(queryWords);
         // Wait for other indexers to finish!
-        while (titleMap.isAlive() || anchorMap.isAlive() || anchorMap.isAlive())
+        while (titleMap.isAlive() || anchorMap.isAlive() || authMap.isAlive())
         {
 
         }
@@ -120,11 +126,6 @@ public class Engine
         {
             System.out.println("TF-IDF=\n" + PrintHelper.getNice(tfidfResults));
 
-            if (pos)
-            {
-                System.out.println("Positions=\n" + PrintHelper.getNice(posResults));
-            }
-
             System.out.println("Title Mappings=\n" + PrintHelper.getNice(titleMappings));
 
             System.out.println("Anchor Mappings=\n" + PrintHelper.getNice(anchorMappings));
@@ -134,6 +135,23 @@ public class Engine
         // Find results
         ArrayList<Integer> topDocuments = new ArrayList<>();
         HashMap<Integer, Double> docToWeightMap = new HashMap<>();
+        //======================================================================
+        // Add gram weights into weight map
+        for (LinkedList<TFIDFPair> entry : gramResults.values())
+        {
+            for (TFIDFPair pair : entry)
+            {
+                Double weight = docToWeightMap.get(pair.docID);
+                if (weight == null)
+                {
+                    docToWeightMap.put(pair.docID, pair.weight);
+                }
+                else
+                {
+                    docToWeightMap.put(pair.docID, weight + pair.weight);
+                }
+            }
+        }
 
         //======================================================================
         findBestestWords(docToWeightMap, topDocuments, titleMappings);
@@ -153,7 +171,7 @@ public class Engine
         {
             HashMap<Integer, Double> denMap = new HashMap<>();
 
-            double totalDen = 0;
+            double totalQueryDen = 0;
             for (Entry<String, LinkedList<TFIDFPair>> entry : tfidfResults.entrySet())
             {
 
@@ -186,14 +204,14 @@ public class Engine
                         denMap.put(idf.docID, weight + (idf.weight * idf.weight));
                     }
                 }
-                totalDen += queryWeight * queryWeight;
+                totalQueryDen += queryWeight * queryWeight;
             }
 
-            // Modify den by query terms
+            // Modify den by query terms and use den to divide
             newList = new LinkedList<>();
             for (Entry<Integer, Double> entry : denMap.entrySet())
             {
-                Double denominator = entry.getValue() * totalDen;
+                Double denominator = entry.getValue() * totalQueryDen;
                 denominator = Math.sqrt(denominator);
 
                 // divide and modify weight
@@ -202,15 +220,68 @@ public class Engine
                 newList.add(new TFIDFPair(key, weight / denominator));
             }
 
-            Collections.sort(newList);
         }
         //======================================================================
+        // find the most authority
+        double totalWeight = 0;
+        int docCount = 1;
+        PriorityQueue<AuthPair> authenticSites = new PriorityQueue<>();
+        for (TFIDFPair pair : newList)
+        {
+            int docId = pair.docID;
+            int auth = authMap.get(docId);
+            totalWeight += pair.weight;
+            
+            // Don't add up low auth sites
+            if (auth < 1)
+            {
+                continue;
+            }
+            
+            docCount++;
+            authenticSites.add(new AuthPair(docId, auth));
+            // Keep only the 5 most authentic sites
+            if (authenticSites.size() > 5)
+            {
+                authenticSites.remove();
+            }
+        }
+        
+        // find some measure to increase the high ranked weights
+        double averageWeight = totalWeight / docCount;
+        
+        // Increase the weight of high authority sites
+        for (TFIDFPair pair : newList)
+        {
+            AuthPair delete = null;
+            for (AuthPair pairA : authenticSites)
+            {
+                if (pairA.docID == pair.docID)
+                {
+                    delete = pairA;
+                    break;
+                }
+            }
+            if (delete != null)
+            {
+                authenticSites.remove(delete);
+                pair.incWeight(averageWeight);
+            }
+            if (authenticSites.isEmpty())
+            {
+                break;
+            }
+        }
 
+        //======================================================================
         // find the best documents after alligning
         // only find the top n documents for reuslts
+        Collections.sort(newList);
+
         while (topDocuments.size() < QUERIES_TO_SHOW && !newList.isEmpty())
         {
-            Integer docId = newList.removeFirst().docID;
+            TFIDFPair pair = newList.removeFirst();
+            Integer docId = pair.docID;
             if (!topDocuments.contains(docId))
             {
                 topDocuments.add(docId);
@@ -218,13 +289,6 @@ public class Engine
         }
 
         //======================================================================
-        //  combine positions of queries that use multiple words
-//        List<DocPair> reformedPosList = new LinkedList<>();
-//        for (Entry<String, LinkedList<DocPair>> entry : posResults.entrySet())
-//        {
-//            //is test constains queryWords
-//        }
-
         // Get the snippets of top documents
         TextHelper t = new TextHelper();
         LinkedList<Integer> processId = new LinkedList<>();     //only process each document once!
@@ -250,13 +314,13 @@ public class Engine
             }
         }
         //======================================================================
-
         // Return URL list from URL Document Map
         ArrayList<String> results = new ArrayList<>();
         for (Integer i : topDocuments)
         {
-         
+
             String url = URL_DOCUMENT_MAP.get(i);
+            //System.out.println(i + " " + authMap.getMap().get(i));
             results.add(url);
             urlToTextSnippetMap.put(url, t.get(i));
         }
@@ -359,6 +423,7 @@ public class Engine
             }
         }
 
+        // TODO remove this!
         // find the number 1 document just once!
         if (topDocuments.isEmpty())
         {
@@ -367,7 +432,7 @@ public class Engine
             for (Integer i : bestDocUrls)
             {
                 String s = URL_DOCUMENT_MAP.get(i);
-                if (s.length() < smallestValue)
+                if (s.length() < smallestValue && isUrlLegit(i))
                 {
                     smallestValue = s.length();
                     smallestIndex = i;
@@ -384,6 +449,11 @@ public class Engine
         }
     }
 
+    public static boolean isUrlLegit(int url)
+    {
+        return authMap.getMap().get(url) > 1;
+    }
+
     /**
      * Find the TFIDF of values in the index
      *
@@ -393,19 +463,32 @@ public class Engine
     public static void findIndex(boolean pos, HashMap<String, Double> queryWords)
     {
         SearchThreading t = new SearchThreading(URL_DOCUMENT_MAP.getAllIds().size(), pos, LIMIT, queryWords);
+        Set<String> words = queryWords.keySet();
 
         // Search all words
-        for (String word : queryWords.keySet())
+        for (String word : words)
         {
             t.searchWord(word);
         }
 
+        // find n grams as well
+        NGramThreading ng = new NGramThreading(LIMIT);
+        if (words.size() > 1 && words.size() < 5)
+        {
+            List<List<String>> queryLists = QueryHelper.getPermutations(new LinkedList<>(words));
+            for (List<String> word : queryLists)
+            {
+                ng.searchWord(word);
+            }
+        }
+
         // Wait until all finished
-        while (t.checkAndStartWaitingList())
+        while (t.checkAndStartWaitingList() || ng.checkAndStartWaitingList())
         {
             // wait until finished
         }
 
+        gramResults = (HashMap<String, LinkedList<TFIDFPair>>) ng.getWeightResults().clone();
         tfidfResults = (HashMap<String, LinkedList<TFIDFPair>>) t.getWeightResults().clone();
 
         if (pos)
@@ -415,5 +498,6 @@ public class Engine
 
         // clear
         t.clear();
+        ng.clear();
     }
 }

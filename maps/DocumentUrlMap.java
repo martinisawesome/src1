@@ -9,6 +9,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 import storage.FileSystem;
 
 /**
@@ -63,6 +64,28 @@ public final class DocumentUrlMap
         }
 
         return docId;
+    }
+
+    public Integer urlHas(String word)
+    {
+        
+        
+        for (Map.Entry<Integer, String> entry : map.entrySet())
+        {
+            // check if it's exact match
+            String compare = entry.getValue();
+            if (word.equals(compare)
+                    ||compare.replace(".php", "").equals("word")
+                    ||compare.replace(".html", "").equals("word")
+                )
+            {
+
+                return entry.getKey();
+            }
+
+        }
+
+        return null;
     }
 
     public void readInFile() throws IOException
