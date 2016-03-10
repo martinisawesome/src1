@@ -2,6 +2,7 @@ package textprocessor;
 
 public class Stemming
 {
+    @Deprecated
     public static String stem(String string)
     {
         if (string.endsWith("sses"))

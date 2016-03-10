@@ -16,7 +16,6 @@ public class AuthorityMap
     private final Thread t;
 
     public AuthorityMap()
-
     {
         this.authorityMap = new HashMap<>();
         t = getThread();

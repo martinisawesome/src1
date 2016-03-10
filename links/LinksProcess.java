@@ -30,7 +30,7 @@ public class LinksProcess
      * @return
      * @throws java.io.IOException
      */
-    public static LinkedList<File> getAllContentLinkFiles() throws IOException
+    public static LinkedList<File> processAllContentLinkFiles() throws IOException
     {
         File[] deletes = new File(DIRECTORY).listFiles();
         if (deletes != null)
@@ -135,7 +135,7 @@ public class LinksProcess
                             Integer docId = documentMap.urlHas(url);
                             if (docId == null)
                             {
-                                System.out.println(contentFile.getName() + " " + url);
+                                //System.out.println(contentFile.getName() + " " + url);
                                 continue;
                             }
 

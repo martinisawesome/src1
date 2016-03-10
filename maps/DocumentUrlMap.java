@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 import storage.FileSystem;
 
 /**
@@ -18,6 +17,8 @@ import storage.FileSystem;
 public final class DocumentUrlMap
 {
     private final HashMap<Integer, String> map;
+    private HashMap<String, LinkedList<Integer>> matches;
+    private Thread t1;
 
     public DocumentUrlMap() throws IOException
     {
@@ -26,14 +27,38 @@ public final class DocumentUrlMap
 
     }
 
-    public HashMap<String, LinkedList<Integer>> urlMatches(HashMap<String, Double> word)
+    public boolean isAlive()
     {
-        HashMap<String, LinkedList<Integer>> urlMap = new HashMap<>();
-        for (String s : word.keySet())
+        return t1 != null && t1.isAlive();
+    }
+
+    public HashMap<String, LinkedList<Integer>> getMatches()
+    {
+        t1 = null;
+        return matches;
+    }
+
+    public void urlMatches(final HashMap<String, Double> word)
+    {
+        t1 = new Thread()
         {
-            urlMap.put(s, urlMatches(s));
-        }
-        return urlMap;
+
+            @Override
+            public void run()
+            {
+                if (matches != null)
+                {
+                    matches.clear();
+                }
+                HashMap<String, LinkedList<Integer>> urlMap = new HashMap<>();
+                for (String s : word.keySet())
+                {
+                    urlMap.put(s, urlMatches(s));
+                }
+                matches = urlMap;
+            }
+        };
+        t1.start();
     }
 
     /**
@@ -42,7 +67,7 @@ public final class DocumentUrlMap
      * @param word
      * @return
      */
-    public LinkedList<Integer> urlMatches(String word)
+    private LinkedList<Integer> urlMatches(String word)
     {
         LinkedList<Integer> docId = new LinkedList<>();
         String shortened = shortUrl(word);
@@ -68,16 +93,15 @@ public final class DocumentUrlMap
 
     public Integer urlHas(String word)
     {
-        
-        
+
         for (Map.Entry<Integer, String> entry : map.entrySet())
         {
             // check if it's exact match
             String compare = entry.getValue();
             if (word.equals(compare)
-                    ||compare.replace(".php", "").equals("word")
-                    ||compare.replace(".html", "").equals("word")
-                )
+                || compare.replace(".php", "").equals(word)
+                || compare.replace(".html", "").equals(word)
+                || compare.replace(".htm", "").equals(word))
             {
 
                 return entry.getKey();
@@ -141,6 +165,11 @@ public final class DocumentUrlMap
 
     public String get(Integer docId)
     {
+        String fileName = map.get(docId);
+        if (fileName.contains("mailman") || fileName.contains("fano"))
+        {
+            return null;
+        }
         return map.get(docId);
     }
 

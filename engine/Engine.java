@@ -24,8 +24,8 @@ import tfidf.TFIDFPair;
  */
 public class Engine
 {
-    private static final boolean GET_TEXT_SNIPPET = true;       // controls whether to pull text snippets
-    private static final int QUERIES_TO_SHOW = 20;
+    private static final boolean GET_TEXT_SNIPPET = false;       // controls whether to pull text snippets
+    private static final int QUERIES_TO_SHOW = 10;
     private static final boolean PRINT_WEIGHTS = false;
     private static final int LIMIT = -1;
 
@@ -34,7 +34,7 @@ public class Engine
     private static HashMap<String, LinkedList<DocPair>> posResults;
     private static DocumentUrlMap URL_DOCUMENT_MAP;
     private static HashMap<String, String> urlToTextSnippetMap;
-    private static AuthorityMap authMap;
+    private static AuthorityMap AUTH_MAP;
 
     // ______          __                       _____       _         _____                
     // | ___ \        / _|                     |  _  |     | |       |  _  |               
@@ -47,7 +47,7 @@ public class Engine
     {
         try
         {
-            authMap = new AuthorityMap();
+            AUTH_MAP = new AuthorityMap();
             URL_DOCUMENT_MAP = new DocumentUrlMap();
             URL_DOCUMENT_MAP.readInFile();
         }
@@ -92,8 +92,7 @@ public class Engine
                 }
             }
         }
-
-        // Compute TF
+        
         if (queryWords.isEmpty())
         {
             return new LinkedList<>();
@@ -101,6 +100,9 @@ public class Engine
 
         // first find in index
         findIndex(GET_TEXT_SNIPPET, queryWords);
+        
+        // start in URL, must never happen before finding index!
+       // URL_DOCUMENT_MAP.urlMatches(queryWords);
 
         // Start Title Map
         TitleMap titleMap = new TitleMap();
@@ -110,29 +112,7 @@ public class Engine
         AnchorTextMap anchorMap = new AnchorTextMap();
         anchorMap.processQuery(queryWords);
 
-        // start in URL (skip this, takes too long!)
-        //HashMap<String, LinkedList<Integer>> urlMap = URL_DOCUMENT_MAP.urlMatches(queryWords);
-        // Wait for other indexers to finish!
-        while (titleMap.isAlive() || anchorMap.isAlive() || authMap.isAlive())
-        {
-
-        }
-
-        // Get mappings of titles
-        HashMap<String, LinkedList<Integer>> titleMappings = titleMap.getMapping();
-        HashMap<String, LinkedList<Integer>> anchorMappings = anchorMap.getMapping();
-
-        if (PRINT_WEIGHTS)
-        {
-            System.out.println("TF-IDF=\n" + PrintHelper.getNice(tfidfResults));
-
-            System.out.println("Title Mappings=\n" + PrintHelper.getNice(titleMappings));
-
-            System.out.println("Anchor Mappings=\n" + PrintHelper.getNice(anchorMappings));
-
-            //System.out.println("URL=\n" + PrintHelper.getNice(urlMap));
-        }
-        // Find results
+        // Store results
         ArrayList<Integer> topDocuments = new ArrayList<>();
         HashMap<Integer, Double> docToWeightMap = new HashMap<>();
         //======================================================================
@@ -142,6 +122,7 @@ public class Engine
             for (TFIDFPair pair : entry)
             {
                 Double weight = docToWeightMap.get(pair.docID);
+
                 if (weight == null)
                 {
                     docToWeightMap.put(pair.docID, pair.weight);
@@ -152,10 +133,6 @@ public class Engine
                 }
             }
         }
-
-        //======================================================================
-        findBestestWords(docToWeightMap, topDocuments, titleMappings);
-        findBestestWords(docToWeightMap, topDocuments, anchorMappings);
 
         //======================================================================
         // Compute the simple values
@@ -221,35 +198,66 @@ public class Engine
             }
 
         }
+        
+        //======================================================================
+        // Wait for other indexers to finish!
+        while (titleMap.isAlive() || anchorMap.isAlive() || AUTH_MAP.isAlive() || URL_DOCUMENT_MAP.isAlive())
+        {
+
+        }
+
+        // Get mappings of titles
+        HashMap<String, LinkedList<Integer>> titleMappings = titleMap.getMapping();
+        HashMap<String, LinkedList<Integer>> anchorMappings = anchorMap.getMapping();
+        HashMap<String, LinkedList<Integer>> urlMappings = URL_DOCUMENT_MAP.getMatches();
+
+        if (PRINT_WEIGHTS)
+        {
+            System.out.println("TF-IDF=\n" + PrintHelper.getNice(tfidfResults));
+
+            System.out.println("Title Mappings=\n" + PrintHelper.getNice(titleMappings));
+
+            System.out.println("Anchor Mappings=\n" + PrintHelper.getNice(anchorMappings));
+
+            System.out.println("URL=\n" + PrintHelper.getNice(urlMappings));
+        }
+        
         //======================================================================
         // find the most authority
         double totalWeight = 0;
-        int docCount = 1;
+        long totalAuth = 0;
+        double docCount = 1;
         PriorityQueue<AuthPair> authenticSites = new PriorityQueue<>();
         for (TFIDFPair pair : newList)
         {
             int docId = pair.docID;
-            int auth = authMap.get(docId);
-            totalWeight += pair.weight;
+            int auth = AUTH_MAP.get(docId);
+            totalAuth += auth;
             
+            totalWeight += pair.weight;
+
             // Don't add up low auth sites
             if (auth < 1)
             {
                 continue;
             }
+            else if (pair.weight > 1)
+            {
+                docCount++;
+            }
             
-            docCount++;
             authenticSites.add(new AuthPair(docId, auth));
             // Keep only the 5 most authentic sites
-            if (authenticSites.size() > 5)
+            if (authenticSites.size() > QUERIES_TO_SHOW)
             {
                 authenticSites.remove();
             }
         }
-        
+
         // find some measure to increase the high ranked weights
         double averageWeight = totalWeight / docCount;
-        
+        double averageAuth =  Math.log(totalAuth / docCount);
+
         // Increase the weight of high authority sites
         for (TFIDFPair pair : newList)
         {
@@ -262,23 +270,36 @@ public class Engine
                     break;
                 }
             }
+            
+            // don't increase the same weight again
             if (delete != null)
             {
                 authenticSites.remove(delete);
-                pair.incWeight(averageWeight);
+                double auth = AUTH_MAP.get(pair.docID);
+                double inc = Math.log(auth / averageAuth);
+                pair.incWeight(inc);
             }
+            
+            // no more sites to increase
             if (authenticSites.isEmpty())
             {
                 break;
             }
         }
+        
+        //======================================================================
+        // Check title and anchor text
+        
+        addMoreWeight(averageWeight + averageWeight, docToWeightMap, topDocuments, titleMappings);
+        addMoreWeight(averageWeight + averageWeight, docToWeightMap, topDocuments, urlMappings);
+        addMoreWeight(averageWeight, docToWeightMap, topDocuments, anchorMappings);
 
         //======================================================================
         // find the best documents after alligning
         // only find the top n documents for reuslts
         Collections.sort(newList);
-
-        while (topDocuments.size() < QUERIES_TO_SHOW && !newList.isEmpty())
+        //System.out.println("=========================================");
+        while (topDocuments.size() < QUERIES_TO_SHOW * 2 && !newList.isEmpty())
         {
             TFIDFPair pair = newList.removeFirst();
             Integer docId = pair.docID;
@@ -320,9 +341,16 @@ public class Engine
         {
 
             String url = URL_DOCUMENT_MAP.get(i);
-            //System.out.println(i + " " + authMap.getMap().get(i));
-            results.add(url);
-            urlToTextSnippetMap.put(url, t.get(i));
+            if (url != null)
+            {
+                results.add(url);
+                urlToTextSnippetMap.put(url, t.get(i));
+            }
+            
+            if (results.size() > QUERIES_TO_SHOW)
+            {
+                break;
+            }
         }
         //======================================================================
 
@@ -371,32 +399,44 @@ public class Engine
         {
             posResults.clear();
         }
+        
+        if (gramResults != null)
+        {
+            gramResults.clear();
+        }
+        
     }
 
     /**
      * Iterates a smaller list for the best words to find!
      *
+     * @param weightUp
      * @param weightMap
      * @param topDocuments
-     * @param urlMap
+     * @param map
      */
-    public static void findBestestWords(HashMap<Integer, Double> weightMap, List<Integer> topDocuments, HashMap<String, LinkedList<Integer>> urlMap)
+    public static void addMoreWeight(double weightUp, HashMap<Integer, Double> weightMap, List<Integer> topDocuments, HashMap<String, LinkedList<Integer>> map)
     {
+        if (map == null)
+        {
+            return;
+        }
 
         LinkedList<Integer> bestDocUrls = new LinkedList<>();
 
         // find if any URL words match
-        for (Entry<String, LinkedList<Integer>> entry : urlMap.entrySet())
+        for (Entry<String, LinkedList<Integer>> entry : map.entrySet())
         {
             for (Integer i : entry.getValue())
             {
                 if (weightMap.get(i) == null)
                 {
-                    weightMap.put(i, 1.5);
+         
+                    weightMap.put(i, weightUp);
                 }
                 else
                 {
-                    weightMap.put(i, weightMap.get(i) + 1.5);
+                    weightMap.put(i, weightMap.get(i) + weightUp);
                 }
             }
 
@@ -423,7 +463,6 @@ public class Engine
             }
         }
 
-        // TODO remove this!
         // find the number 1 document just once!
         if (topDocuments.isEmpty())
         {
@@ -432,6 +471,11 @@ public class Engine
             for (Integer i : bestDocUrls)
             {
                 String s = URL_DOCUMENT_MAP.get(i);
+                if (s == null)
+                {
+                    continue;
+                }
+                s = s.replaceAll("www.", "");
                 if (s.length() < smallestValue && isUrlLegit(i))
                 {
                     smallestValue = s.length();
@@ -451,7 +495,7 @@ public class Engine
 
     public static boolean isUrlLegit(int url)
     {
-        return authMap.getMap().get(url) > 1;
+        return AUTH_MAP.getMap().get(url) > 1;
     }
 
     /**
