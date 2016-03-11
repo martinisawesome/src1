@@ -10,6 +10,7 @@ import java.util.LinkedList;
 import java.util.Map;
 import java.util.Set;
 import storage.FileSystem;
+import textprocessor.Stemming;
 
 /**
  * Tracks which document ID is associated with what URL
@@ -17,7 +18,7 @@ import storage.FileSystem;
 public final class DocumentUrlMap
 {
     private final HashMap<Integer, String> map;
-    private HashMap<String, LinkedList<Integer>> matches;
+    private LinkedList<Integer> matches;
     private Thread t1;
 
     public DocumentUrlMap() throws IOException
@@ -32,7 +33,7 @@ public final class DocumentUrlMap
         return t1 != null && t1.isAlive();
     }
 
-    public HashMap<String, LinkedList<Integer>> getMatches()
+    public LinkedList<Integer> getMatches()
     {
         t1 = null;
         return matches;
@@ -50,12 +51,32 @@ public final class DocumentUrlMap
                 {
                     matches.clear();
                 }
+                String first = null;
                 HashMap<String, LinkedList<Integer>> urlMap = new HashMap<>();
                 for (String s : word.keySet())
                 {
+                    if (first == null)
+                    {
+                        first = s;
+                    }
                     urlMap.put(s, urlMatches(s));
                 }
-                matches = urlMap;
+
+                // find only URL that contains all
+                matches = urlMap.remove(first);
+                for (LinkedList<Integer> list : urlMap.values())
+                {
+                    LinkedList<Integer> removes = new LinkedList<>();
+                    for (Integer doc : matches)
+                    {
+                        if (!list.contains(doc))
+                        {
+                            removes.add(doc);
+                        }
+                    }
+
+                    matches.removeAll(removes);
+                }
             }
         };
         t1.start();
@@ -70,21 +91,19 @@ public final class DocumentUrlMap
     private LinkedList<Integer> urlMatches(String word)
     {
         LinkedList<Integer> docId = new LinkedList<>();
-        String shortened = shortUrl(word);
-        for (Map.Entry<Integer, String> entry : map.entrySet())
+        String shortened = Stemming.stem(word);
+        if (shortened.length() > 3)
         {
-            // check if it's exact match
-            String compare = shortUrl(entry.getValue());
-            if (shortened.equals(compare))
+            for (Map.Entry<Integer, String> entry : map.entrySet())
             {
-                docId.clear();
-                docId.add(entry.getKey());
-                return docId;
-            }
-            // Otherwise, check if this URL has the word
-            else if (compare.contains(shortened))
-            {
-                docId.add(entry.getKey());
+                // check if it's exact match
+                String urlWord = Stemming.stem(entry.getValue());
+
+                if (urlWord.contains(shortened))
+                {
+                    docId.add(entry.getKey());
+                }
+
             }
         }
 
@@ -145,12 +164,6 @@ public final class DocumentUrlMap
             wr.write("\n");
         }
         wr.close();
-    }
-
-    private String shortUrl(String word)
-    {
-        String shortened = word.replace("https://", "").replace("http://", "");
-        return shortened;
     }
 
     public void add(Integer id, String url)

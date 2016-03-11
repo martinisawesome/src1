@@ -78,7 +78,7 @@ public class Engine
         for (String modWord1 : searchTerms)
         {
             String modWord = modWord1.toLowerCase();
-            modWord = modWord.replaceAll("[^a-zA-Z0-9]", "").trim();    // Remove all non-alphanumeric chars
+            modWord = modWord.replaceAll("[^a-zA-Z0-9]", " ").trim();    // Remove all non-alphanumeric chars
             if (!modWord.isEmpty() && !StopWords.isStop(modWord))
             {
                 Double weight = queryWords.get(modWord);
@@ -92,7 +92,7 @@ public class Engine
                 }
             }
         }
-        
+
         if (queryWords.isEmpty())
         {
             return new LinkedList<>();
@@ -100,9 +100,9 @@ public class Engine
 
         // first find in index
         findIndex(GET_TEXT_SNIPPET, queryWords);
-        
+
         // start in URL, must never happen before finding index!
-       // URL_DOCUMENT_MAP.urlMatches(queryWords);
+        URL_DOCUMENT_MAP.urlMatches(queryWords);
 
         // Start Title Map
         TitleMap titleMap = new TitleMap();
@@ -198,7 +198,7 @@ public class Engine
             }
 
         }
-        
+
         //======================================================================
         // Wait for other indexers to finish!
         while (titleMap.isAlive() || anchorMap.isAlive() || AUTH_MAP.isAlive() || URL_DOCUMENT_MAP.isAlive())
@@ -209,7 +209,8 @@ public class Engine
         // Get mappings of titles
         HashMap<String, LinkedList<Integer>> titleMappings = titleMap.getMapping();
         HashMap<String, LinkedList<Integer>> anchorMappings = anchorMap.getMapping();
-        HashMap<String, LinkedList<Integer>> urlMappings = URL_DOCUMENT_MAP.getMatches();
+        HashMap<String, LinkedList<Integer>> urlMappings = new HashMap<>();
+        urlMappings.put("", URL_DOCUMENT_MAP.getMatches());
 
         if (PRINT_WEIGHTS)
         {
@@ -221,7 +222,7 @@ public class Engine
 
             System.out.println("URL=\n" + PrintHelper.getNice(urlMappings));
         }
-        
+
         //======================================================================
         // find the most authority
         double totalWeight = 0;
@@ -233,7 +234,7 @@ public class Engine
             int docId = pair.docID;
             int auth = AUTH_MAP.get(docId);
             totalAuth += auth;
-            
+
             totalWeight += pair.weight;
 
             // Don't add up low auth sites
@@ -245,7 +246,7 @@ public class Engine
             {
                 docCount++;
             }
-            
+
             authenticSites.add(new AuthPair(docId, auth));
             // Keep only the 5 most authentic sites
             if (authenticSites.size() > QUERIES_TO_SHOW)
@@ -256,7 +257,7 @@ public class Engine
 
         // find some measure to increase the high ranked weights
         double averageWeight = totalWeight / docCount;
-        double averageAuth =  Math.log(totalAuth / docCount);
+        double averageAuth = Math.log(totalAuth / docCount);
 
         // Increase the weight of high authority sites
         for (TFIDFPair pair : newList)
@@ -270,7 +271,7 @@ public class Engine
                     break;
                 }
             }
-            
+
             // don't increase the same weight again
             if (delete != null)
             {
@@ -279,20 +280,30 @@ public class Engine
                 double inc = Math.log(auth / averageAuth);
                 pair.incWeight(inc);
             }
-            
+
             // no more sites to increase
             if (authenticSites.isEmpty())
             {
                 break;
             }
         }
-        
+
         //======================================================================
         // Check title and anchor text
-        
-        addMoreWeight(averageWeight + averageWeight, docToWeightMap, topDocuments, titleMappings);
-        addMoreWeight(averageWeight + averageWeight, docToWeightMap, topDocuments, urlMappings);
-        addMoreWeight(averageWeight, docToWeightMap, topDocuments, anchorMappings);
+        if (PRINT_WEIGHTS)
+        {
+            System.out.println("INC By: " + averageWeight);
+            PrintHelper.printAll(docToWeightMap);
+        }
+
+        addMoreWeight(averageWeight + averageWeight, docToWeightMap, topDocuments, titleMappings, true);
+        addMoreWeight(averageWeight * 5, docToWeightMap, topDocuments, urlMappings, true);
+        addMoreWeight(averageWeight, docToWeightMap, topDocuments, anchorMappings, false);
+        if (PRINT_WEIGHTS)
+
+        {
+            PrintHelper.printAll(docToWeightMap);
+        }
 
         //======================================================================
         // find the best documents after alligning
@@ -305,6 +316,10 @@ public class Engine
             Integer docId = pair.docID;
             if (!topDocuments.contains(docId))
             {
+                if (PRINT_WEIGHTS)
+                {
+                    System.out.println(pair.weight);
+                }
                 topDocuments.add(docId);
             }
         }
@@ -346,7 +361,7 @@ public class Engine
                 results.add(url);
                 urlToTextSnippetMap.put(url, t.get(i));
             }
-            
+
             if (results.size() > QUERIES_TO_SHOW)
             {
                 break;
@@ -399,12 +414,12 @@ public class Engine
         {
             posResults.clear();
         }
-        
+
         if (gramResults != null)
         {
             gramResults.clear();
         }
-        
+
     }
 
     /**
@@ -414,8 +429,9 @@ public class Engine
      * @param weightMap
      * @param topDocuments
      * @param map
+     * @param top
      */
-    public static void addMoreWeight(double weightUp, HashMap<Integer, Double> weightMap, List<Integer> topDocuments, HashMap<String, LinkedList<Integer>> map)
+    public static void addMoreWeight(double weightUp, HashMap<Integer, Double> weightMap, List<Integer> topDocuments, HashMap<String, LinkedList<Integer>> map, boolean top)
     {
         if (map == null)
         {
@@ -427,44 +443,42 @@ public class Engine
         // find if any URL words match
         for (Entry<String, LinkedList<Integer>> entry : map.entrySet())
         {
-            for (Integer i : entry.getValue())
+
+            if (bestDocUrls.isEmpty())
             {
-                if (weightMap.get(i) == null)
+                bestDocUrls.addAll(entry.getValue());
+            }
+            else
+            {
+                // Remove everything not common between the two lists
+                LinkedList<Integer> removeList = new LinkedList<>();
+                for (Integer i : bestDocUrls)
                 {
-         
-                    weightMap.put(i, weightUp);
+                    if (!entry.getValue().contains(i))
+                    {
+                        removeList.add(i);
+                    }
                 }
-                else
-                {
-                    weightMap.put(i, weightMap.get(i) + weightUp);
-                }
+                bestDocUrls.removeAll(removeList);
             }
 
-            // find the number 1 document just once!
-            if (topDocuments.isEmpty())
+        }
+
+        for (Integer i : bestDocUrls)
+        {
+            if (weightMap.get(i) == null)
             {
-                if (bestDocUrls.isEmpty())
-                {
-                    bestDocUrls.addAll(entry.getValue());
-                }
-                else
-                {
-                    // Remove everything not common between the two lists
-                    LinkedList<Integer> removeList = new LinkedList<>();
-                    for (Integer i : entry.getValue())
-                    {
-                        if (!bestDocUrls.contains(i))
-                        {
-                            removeList.add(i);
-                        }
-                    }
-                    bestDocUrls.removeAll(removeList);
-                }
+
+                weightMap.put(i, weightUp);
+            }
+            else
+            {
+                weightMap.put(i, weightMap.get(i) + weightUp);
             }
         }
 
         // find the number 1 document just once!
-        if (topDocuments.isEmpty())
+        if (top)
         {
             int smallestValue = Integer.MAX_VALUE;
             int smallestIndex = -1;

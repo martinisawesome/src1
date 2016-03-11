@@ -62,4 +62,29 @@ public class PrintHelper<E>
 
         return sb.toString();
     }
+
+    public static String printAll(HashMap<Integer, Double> map)
+    {
+        StringBuilder sb = new StringBuilder();
+        int count = 0;
+        for (Map.Entry<Integer, Double> entry : map.entrySet())
+        {
+            count++;
+            Integer key = entry.getKey();
+            sb.append(key);
+            sb.append(":");
+            sb.append(String.format("%.4f",entry.getValue()));
+            if (count > 10)
+            {
+                sb.append("\n");
+                count = 0;
+            }
+            else
+            {
+                sb.append(";");
+            }
+        }
+        System.out.println(sb.toString());
+        return sb.toString();
+    }
 }

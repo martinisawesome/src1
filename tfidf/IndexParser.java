@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.util.LinkedList;
 import storage.FilePartioning;
 import storage.FileSystem;
+import textprocessor.Stemming;
 
 /**
  * Takes the indexPos files and partitions them out
@@ -188,6 +189,11 @@ public class IndexParser
     {
         LinkedList<TFIDFPair> positions = new LinkedList<>();
 
+        if (word.length() > 3)
+        {
+            word = Stemming.stem(word);
+        }
+
         File file = new File(fileName);
         FileReader fr = new FileReader(file);
         BufferedReader br = new BufferedReader(fr);
@@ -197,7 +203,8 @@ public class IndexParser
         while ((curr = br.readLine()) != null)
         {
             int index = curr.indexOf(':');
-            String token = curr.substring(0, index);
+            String token = Stemming.stem(curr.substring(0, index));
+
             if (token.equals(word))
             {
                 curr = curr.substring(index + 1, curr.length());

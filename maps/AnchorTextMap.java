@@ -13,6 +13,7 @@ import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.Set;
 import storage.FileSystem;
+import textprocessor.Stemming;
 
 /**
  *
@@ -73,8 +74,8 @@ public class AnchorTextMap
                     while ((curr = br.readLine()) != null)
                     {
                         String[] parts = curr.split(":");
-                        String word = parts[0];
-                        int compare = word.compareTo(list.peek());
+                        String word = Stemming.stem(parts[0]);
+                        int compare = word.compareTo(Stemming.stem(list.peek()));
                         if (compare == 0)
                         {
                             String[] docs = parts[1].split(",");

@@ -3,8 +3,6 @@ import engine.Engine;
 import java.io.File;
 import java.io.IOException;
 import java.util.List;
-import links.AuthProcess;
-import links.LinksProcess;
 import storage.FilePartioning;
 import storage.FileSystem;
 import tfidf.*;
@@ -17,7 +15,6 @@ public class Main
     public static void main(String[] args) throws Exception
     {
         long startTime = System.nanoTime();
-        getPrint("");
         getPrint("  ");
         getPrint(" mondego");
         getPrint("machine learning");
